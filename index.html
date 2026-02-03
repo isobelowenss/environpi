@@ -242,6 +242,7 @@ let overlayMaps = {
     "Bird Sightings": birdPoints,
     "Depth Data": depthPoints
 };
+L.control.layers(null, overlayMaps).addTo(map);
 
 let waypoints = [];
 let routeLine = L.polyline([], {color: 'blue'}).addTo(map);
