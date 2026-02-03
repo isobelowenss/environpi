@@ -79,13 +79,16 @@
       background-color: #f8f9fa;
       z-index: 10;
     }
+
+    #mainContent { display: none; } /* Ensures page cannot be viewwed unless given the right key */
+
   </style>
 </head>
 <body>
 
-<h1>Data and Control Hub</h1>
+  <div id="mainContent"> <h1>Data and Control Hub</h1>
 
-<div class="container">
+  <div class="container">
   <div class="left-col">
 
     <div class="box">
@@ -168,13 +171,40 @@
 <script>
 
 // Deals with the security
+const BASE_URL = window.location.origin;
 let API_KEY = sessionStorage.getItem("my_api_key");
 
-if (!API_KEY) {
-    API_KEY = prompt("Please enter your API Access Key:");
-    sessionStorage.setItem("my_api_key", API_KEY);
+async function checkAccess() {
+    if (!API_KEY) {
+        API_KEY = prompt("Please enter your API Access Key:");
+        sessionStorage.setItem("my_api_key", API_KEY);
+    }
+
+    try {
+        // We try to fetch the status. If the key is wrong, the server returns 401.
+        const response = await fetch(`${BASE_URL}/status`, {
+            headers: { "X-API-Key": API_KEY }
+        });
+
+        if (response.ok) {
+            // KEY IS CORRECT: Show the site and start the data refresh
+            document.getElementById("mainContent").style.display = "block";
+            refresh(); 
+            setInterval(refresh, 2000);
+        } else {
+            // KEY IS WRONG
+            alert("Access Denied: Invalid API Key.");
+            sessionStorage.removeItem("my_api_key");
+            location.reload(); // Force a retry
+        }
+    } catch (e) {
+        console.error("Connection error:", e);
+        alert("Could not connect to server.");
+    }
 }
-const BASE_URL = window.location.origin;
+
+// Start the security check immediately
+checkAccess();
 
 /* --- Helpers --- */
 function fmtGPS(lat, lon) { return lat ? `${lat.toFixed(4)}, ${lon.toFixed(4)}` : "No Fix"; }
@@ -283,7 +313,6 @@ async function sendRoute() {
   alert("Route Sent!");
 }
 
-setInterval(refresh, 2000);
 
 //deals with the drawings of the overlaid map
 function drawMapOverlays(waterData, birdData, depthData) {
