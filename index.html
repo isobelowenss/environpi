@@ -3,236 +3,119 @@
 <head>
   <meta charset="UTF-8">
   <title>Data and Control Hub</title>
-
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
   <style>
-    body {
-      margin: 0;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background-color: #acdcff; /* Light Blue Background */
-    }
-
-    h1 {
-      text-align: center;
-      font-size: 36px;
-      margin: 20px 0;
-      color: #0d47a1;
-      font-weight: bold;
-    }
-
-    .container {
-      display: grid;
-      grid-template-columns: 1.2fr 1fr;
-      gap: 20px;
-      padding: 20px;
-    }
-
-    .box {
-      background: white;
-      padding: 15px;
-      border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-      margin-bottom: 20px;
-    }
-
-    h3 { margin-top: 0; color: #333; border-bottom: 2px solid #eee; padding-bottom: 5px; }
-
+    body { margin: 0; font-family: 'Segoe UI', sans-serif; background-color: #acdcff; }
+    .top-bar { display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; }
+    .box { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-bottom: 20px; }
+    
+    /* Scrollable Table Logic */
+    .table-container { max-height: 250px; overflow-y: auto; border: 1px solid #eee; }
     table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
-    th { background-color: #f8f9fa; }
+    th { position: sticky; top: 0; background: #f8f9fa; z-index: 1; }
+    td, th { border: 1px solid #ddd; padding: 8px; text-align: center; }
 
-    input { width: 100%; padding: 10px; margin: 5px 0; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box; }
-    button { padding: 10px; font-weight: bold; border-radius: 8px; border: none; background: #1976d2; color: white; cursor: pointer; width: 100%; transition: 0.2s; }
-    button:hover { background: #1565c0; }
-
-    .controls { display: grid; grid-template-columns: repeat(3, 60px); gap: 10px; justify-content: center; }
-    .controls button { height: 60px; background: #fff; color: #333; border: 1px solid #ccc; font-size: 20px; }
-    .up { grid-column: 2; } .left { grid-column: 1; grid-row: 2; } .right { grid-column: 3; grid-row: 2; } .down { grid-column: 2; grid-row: 3; }
-
-    .status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-    .status-tile { background: #f1f8ff; border: 1px solid #d1e9ff; border-radius: 8px; padding: 15px; text-align: center; }
-    .status-tile .value { font-size: 18px; font-weight: bold; color: #0d47a1; margin-top: 5px; }
-
-    .alerts { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 15px; }
-    .alert { text-align: center; padding: 12px; border-radius: 8px; font-weight: bold; opacity: 0.2; color: white; background: #555; transition: 0.3s; }
-    .alert.active { opacity: 1; }
-    #stuckBox.active { background: #f44336; }
-    #submergedBox.active { background: #d32f2f; }
-    #rockingBox.active { background: #ff9800; } /* Orange for rocking warning */
-
-    #map { width: 100%; height: 400px; border-radius: 10px; border: 1px solid #ccc; }
-    .route-list { margin-top: 10px; font-size: 12px; max-height: 100px; overflow-y: auto; background: #fafafa; padding: 5px; border-radius: 5px; }
+    #map { width: 100%; height: 500px; border-radius: 10px; }
+    .clear-btn { background: #555; font-size: 10px; width: auto; padding: 5px 10px; opacity: 0.6; }
+    .clear-btn:hover { opacity: 1; background: #d32f2f; }
   </style>
 </head>
 <body>
 
-<h1>Data and Control Hub</h1>
+<div class="top-bar">
+  <h1>Data and Control Hub</h1>
+  <button class="clear-btn" onclick="clearAllData()">Clear All Records</button>
+</div>
 
 <div class="container">
   <div class="left-col">
     <div class="box">
       <h3>Water Quality Data</h3>
-      <div style="overflow-x:auto;">
-        <table>
-          <thead><tr><th>Time</th><th>GPS</th><th>TDS</th><th>Turbidity</th><th>pH</th><th>Temp</th></tr></thead>
-          <tbody id="waterBody"></tbody>
-        </table>
-      </div>
-      <button onclick="downloadCSV('water')" style="margin-top:10px;">Download Water CSV</button>
+      <div class="table-container"><table id="waterTable"><thead><tr><th>Time</th><th>TDS</th><th>pH</th><th>Temp</th></tr></thead><tbody id="waterBody"></tbody></table></div>
     </div>
-
     <div class="box">
       <h3>Bird Detection</h3>
-      <table>
-        <thead><tr><th>Time</th><th>GPS</th><th>Species</th><th>Count</th></tr></thead>
-        <tbody id="birdBody"></tbody>
-      </table>
-      <button onclick="downloadCSV('birds')" style="margin-top:10px;">Download Birds CSV</button>
-    </div>
-
-    <div class="box">
-      <h3>Depth & Motion Logs</h3>
-      <table>
-        <thead><tr><th>Time</th><th>Type</th><th>Value/Axes</th></tr></thead>
-        <tbody id="miscBody"></tbody>
-      </table>
-      <button onclick="downloadCSV('depth')" style="width:48%; display:inline-block;">Depth CSV</button>
-      <button onclick="downloadCSV('motion')" style="width:48%; display:inline-block; float:right;">Motion CSV</button>
+      <div class="table-container"><table id="birdTable"><thead><tr><th>Time</th><th>Species</th><th>Count</th></tr></thead><tbody id="birdBody"></tbody></table></div>
     </div>
   </div>
 
   <div class="right-col">
     <div class="box">
-      <h3>Route Planner</h3>
+      <h3>Route & Data Overlay Map</h3>
       <div id="map"></div>
-      <div style="display:flex; gap:10px; margin-top:10px;">
-        <button onclick="undoWaypoint()" style="background:#777;">Undo</button>
-        <button onclick="clearRoute()" style="background:#777;">Clear</button>
-        <button onclick="sendRoute()">Transmit Route</button>
-      </div>
-      <div class="route-list" id="routeList">Click map to set waypoints...</div>
     </div>
-
     <div class="box">
       <h3>Status & Health</h3>
-      <div class="status-grid">
-        <div class="status-tile">
-          <div>Battery Status</div>
-          <div class="value" id="batteryValue">Waiting...</div>
-        </div>
-        <div class="status-tile">
-          <div>Last Pi Contact</div>
-          <div class="value" id="lastUpdate">Never</div>
-        </div>
-      </div>
-      <div class="alerts">
-        <div id="stuckBox" class="alert">Stuck</div>
-        <div id="submergedBox" class="alert">Submerged</div>
-        <div id="rockingBox" class="alert">Rocking</div>
-      </div>
-    </div>
-
-    <div class="box">
-      <h3>Manual Control</h3>
-      <div class="controls">
-        <button class="up" onclick="sendManual('forward')">↑</button>
-        <button class="left" onclick="sendManual('left')">←</button>
-        <button class="right" onclick="sendManual('right')">→</button>
-        <button class="down" onclick="sendManual('back')">↓</button>
-      </div>
-      <button onclick="sendManual('stop')" style="background:#d32f2f; margin-top:15px;">EMERGENCY STOP</button>
+      <div id="batteryValue">Waiting...</div>
+      <div id="lastUpdate">Never</div>
+      <div id="rockingBox" class="alert">Rocking</div>
     </div>
   </div>
 </div>
 
 <script>
-const API_KEY = "table_varnish";
+let API_KEY = prompt("Please enter the Platform Access Key:");
 const BASE_URL = window.location.origin;
 
-/* --- Helpers --- */
-function fmtGPS(lat, lon) { return lat ? `${lat.toFixed(4)}, ${lon.toFixed(4)}` : "No Fix"; }
+// Initialize Map with Scale
+let map = L.map('map').setView([52.63, 1.3], 13);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+L.control.scale().addTo(map); // Added Scale Bar
 
-/* --- Refresh Logic --- */
+// Layer Groups for Overlays
+let waterLayer = L.layerGroup().addTo(map);
+let birdLayer = L.layerGroup().addTo(map);
+let depthLayer = L.layerGroup().addTo(map);
+
+// Add Toggle Controls
+let overlays = { "Water Data": waterLayer, "Bird Data": birdLayer, "Depth Data": depthLayer };
+L.control.layers(null, overlays).addTo(map);
+
+let waypoints = [];
+let routeLine = L.polyline([], {color: 'red', weight: 4}).addTo(map);
+
+map.on('click', e => {
+  waypoints.push({lat: e.latlng.lat, lon: e.latlng.lng});
+  routeLine.setLatLngs(waypoints.map(w => [w.lat, w.lon]));
+});
+
 async function refresh() {
+  const headers = { "X-API-Key": API_KEY };
   try {
-    const headers = { "X-API-Key": API_KEY };
     const status = await fetch(`${BASE_URL}/status`, { headers }).then(r => r.json());
+    document.getElementById("batteryValue").innerText = "Battery: " + status.battery;
+    document.getElementById("lastUpdate").innerText = "Last Seen: " + status.last_seen_pi;
+    document.getElementById("rockingBox").style.opacity = status.excessive_rocking ? "1" : "0.2";
 
-    // Update UI Status
-    document.getElementById("batteryValue").textContent = status.battery || "Unknown";
-    document.getElementById("lastUpdate").textContent = status.last_seen_pi || "Never";
-    
-    // Toggle Alerts
-    document.getElementById("stuckBox").classList.toggle("active", status.stuck);
-    document.getElementById("submergedBox").classList.toggle("active", status.submerged);
-    document.getElementById("rockingBox").classList.toggle("active", status.excessive_rocking);
-
-    // Fetch Rows
+    // Fetch and Overlay Data Points
     const water = await fetch(`${BASE_URL}/rows/water`, { headers }).then(r => r.json());
+    waterLayer.clearLayers();
+    water.forEach(p => L.circleMarker([p.lat, p.lon], {color: 'blue', radius: 5}).bindPopup(`Temp: ${p.temp}°C`).addTo(waterLayer));
+
     const birds = await fetch(`${BASE_URL}/rows/birds`, { headers }).then(r => r.json());
+    birdLayer.clearLayers();
+    birds.forEach(p => L.marker([p.lat, p.lon]).bindPopup(`${p.species} (${p.count})`).addTo(birdLayer));
     
+    // Update Tables
     updateTable("waterBody", water, 'water');
-    updateTable("birdBody", birds, 'birds');
-  } catch (e) { console.error("Update failed", e); }
+    updateTable("birdBody", birds, 'bird');
+  } catch (e) { console.error("Auth Failed or Connection Lost"); }
 }
 
 function updateTable(id, rows, type) {
   const body = document.getElementById(id);
-  body.innerHTML = "";
-  rows.slice().reverse().forEach(r => {
-    const tr = document.createElement("tr");
-    if (type === 'water') {
-      tr.innerHTML = `<td>${r.ts.split('T')[1]}</td><td>${fmtGPS(r.lat, r.lon)}</td><td>${r.tds}</td><td>${r.turbidity}</td><td>${r.ph}</td><td>${r.temp}</td>`;
-    } else {
-      tr.innerHTML = `<td>${r.ts.split('T')[1]}</td><td>${fmtGPS(r.lat, r.lon)}</td><td>${r.species}</td><td>${r.count}</td>`;
-    }
-    body.appendChild(tr);
-  });
+  body.innerHTML = rows.slice().reverse().map(r => `<tr><td>${r.ts.split('T')[1]}</td>${type==='water' ? `<td>${r.tds}</td><td>${r.ph}</td><td>${r.temp}</td>` : `<td>${r.species}</td><td>${r.count}</td>`}</tr>`).join('');
 }
 
-/* --- Commands --- */
-function downloadCSV(kind) { window.location.href = `${BASE_URL}/download/${kind}.csv?key=${API_KEY}`; }
-
-async function sendManual(dir) {
-  await fetch(`${BASE_URL}/manual`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-API-Key": API_KEY },
-    body: JSON.stringify({ dir })
-  });
+async function clearAllData() {
+  if(confirm("Wipe all logs?")) {
+    await fetch(`${BASE_URL}/clear_all`, { method: "POST", headers: { "X-API-Key": API_KEY } });
+    location.reload();
+  }
 }
 
-/* --- Map Logic --- */
-let map = L.map('map').setView([52.63, 1.3], 13);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-let waypoints = [];
-let routeLine = L.polyline([], {color: 'blue'}).addTo(map);
-
-map.on('click', e => {
-  waypoints.push({lat: e.latlng.lat, lon: e.latlng.lng});
-  updateMap();
-});
-
-function updateMap() {
-  routeLine.setLatLngs(waypoints.map(w => [w.lat, w.lon]));
-  document.getElementById("routeList").innerHTML = waypoints.map((w, i) => `Pt ${i+1}: ${w.lat.toFixed(4)}, ${w.lon.toFixed(4)}`).join("<br>");
-}
-
-function undoWaypoint() { waypoints.pop(); updateMap(); }
-function clearRoute() { waypoints = []; updateMap(); }
-
-async function sendRoute() {
-  if (waypoints.length < 1) return alert("Select points first");
-  await fetch(`${BASE_URL}/route`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-API-Key": API_KEY },
-    body: JSON.stringify({ waypoints })
-  });
-  alert("Route Sent!");
-}
-
-setInterval(refresh, 2000);
+setInterval(refresh, 3000);
 </script>
 </body>
 </html>
