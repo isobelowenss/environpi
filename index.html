@@ -189,6 +189,9 @@ async function checkAccess() {
         if (response.ok) {
             // KEY IS CORRECT: Show the site and start the data refresh
             document.getElementById("mainContent").style.display = "block";
+
+            map.invalidateSize();
+
             refresh(); 
             setInterval(refresh, 2000);
         } else {
@@ -296,7 +299,8 @@ map.on('click', e => {
 });
 
 function updateMap() {
-  routeLine.setLatLngs(waypoints.map(w => [w.lat, w.lon]));
+  const latLngs = waypoints.map(w => [w.lat, w.lon]);
+  routeLine.setLatLngs(latLngs);
   document.getElementById("routeList").innerHTML = waypoints.map((w, i) => `Pt ${i+1}: ${w.lat.toFixed(4)}, ${w.lon.toFixed(4)}`).join("<br>");
 }
 
