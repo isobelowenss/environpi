@@ -166,7 +166,14 @@
 </div>
 
 <script>
-const API_KEY = "table_varnish";
+
+// Deals with the security
+let API_KEY = sessionStorage.getItem("my_api_key");
+
+if (!API_KEY) {
+    API_KEY = prompt("Please enter your API Access Key:");
+    sessionStorage.setItem("my_api_key", API_KEY);
+}
 const BASE_URL = window.location.origin;
 
 /* --- Helpers --- */
@@ -196,8 +203,14 @@ async function refresh() {
 
     const depth = await fetch(`${BASE_URL}/rows/depth`, { headers }).then(r => r.json());// Fetching the depth rows, it already fetched the water + bird
     drawMapOverlays(water, birds, depth); // 2. Call the new drawing function with all the data
-  } catch (e) { console.error("Update failed", e); }
-
+  } catch (e) { 
+      console.error("Update failed", e);
+      // If the server rejects the key, clear the saved key and ask again
+      if (e.message.includes("401")) {
+          alert("Invalid API Key. Please refresh and try again.");
+          sessionStorage.removeItem("my_api_key");
+      }
+  }
 
 }
 
