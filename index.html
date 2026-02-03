@@ -7,115 +7,128 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
     body { margin: 0; font-family: 'Segoe UI', sans-serif; background-color: #acdcff; }
-    .top-bar { display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; }
+    h1 { text-align: center; color: #0d47a1; margin: 15px 0; }
+    .container { display: grid; grid-template-columns: 1.2fr 1fr; gap: 20px; padding: 20px; }
     .box { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-bottom: 20px; }
     
-    /* Scrollable Table Logic */
-    .table-container { max-height: 250px; overflow-y: auto; border: 1px solid #eee; }
-    table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    th { position: sticky; top: 0; background: #f8f9fa; z-index: 1; }
-    td, th { border: 1px solid #ddd; padding: 8px; text-align: center; }
+    /* NEW: Scrollable Table CSS */
+    .table-scroll { max-height: 300px; overflow-y: auto; border: 1px solid #ddd; }
+    table { width: 100%; border-collapse: collapse; background: white; }
+    th { position: sticky; top: 0; background: #f1f1f1; z-index: 2; padding: 10px; border: 1px solid #ddd; }
+    td { padding: 8px; text-align: center; border: 1px solid #ddd; }
 
-    #map { width: 100%; height: 500px; border-radius: 10px; }
-    .clear-btn { background: #555; font-size: 10px; width: auto; padding: 5px 10px; opacity: 0.6; }
-    .clear-btn:hover { opacity: 1; background: #d32f2f; }
+    #map { width: 100%; height: 500px; border-radius: 12px; }
+    .clear-btn { position: absolute; top: 10px; right: 20px; padding: 5px 15px; background: #ff5252; color: white; border: none; border-radius: 5px; cursor: pointer; }
+    .clear-btn:hover { background: #d32f2f; }
   </style>
 </head>
 <body>
 
-<div class="top-bar">
-  <h1>Data and Control Hub</h1>
-  <button class="clear-btn" onclick="clearAllData()">Clear All Records</button>
-</div>
+<button class="clear-btn" onclick="clearData()">Clear All Data</button>
+<h1>Data and Control Hub</h1>
 
 <div class="container">
   <div class="left-col">
     <div class="box">
       <h3>Water Quality Data</h3>
-      <div class="table-container"><table id="waterTable"><thead><tr><th>Time</th><th>TDS</th><th>pH</th><th>Temp</th></tr></thead><tbody id="waterBody"></tbody></table></div>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Time</th><th>TDS</th><th>Turbidity</th><th>pH</th><th>Temp</th></tr></thead>
+          <tbody id="waterBody"></tbody>
+        </table>
+      </div>
     </div>
+
     <div class="box">
-      <h3>Bird Detection</h3>
-      <div class="table-container"><table id="birdTable"><thead><tr><th>Time</th><th>Species</th><th>Count</th></tr></thead><tbody id="birdBody"></tbody></table></div>
+      <h3>Bird Detection Data</h3>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Time</th><th>Species</th><th>Count</th></tr></thead>
+          <tbody id="birdBody"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 
   <div class="right-col">
     <div class="box">
-      <h3>Route & Data Overlay Map</h3>
+      <h3>Route and Data Map</h3>
       <div id="map"></div>
     </div>
-    <div class="box">
-      <h3>Status & Health</h3>
-      <div id="batteryValue">Waiting...</div>
-      <div id="lastUpdate">Never</div>
-      <div id="rockingBox" class="alert">Rocking</div>
+    
+    <div class="box" id="statusBox">
+      <h3>System Status</h3>
+      <p id="batteryText">Battery: Loading...</p>
+      <p id="lastSeen">Last Seen: Never</p>
     </div>
   </div>
 </div>
 
 <script>
-let API_KEY = prompt("Please enter the Platform Access Key:");
-const BASE_URL = window.location.origin;
+// API KEY PROMPT
+const API_KEY = prompt("Enter API Access Key:") || "table_varnish";
 
-// Initialize Map with Scale
+// INITIALIZE MAP
 let map = L.map('map').setView([52.63, 1.3], 13);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-L.control.scale().addTo(map); // Added Scale Bar
+L.control.scale().addTo(map); // Added Scale
 
-// Layer Groups for Overlays
+// OVERLAY LAYERS
 let waterLayer = L.layerGroup().addTo(map);
 let birdLayer = L.layerGroup().addTo(map);
 let depthLayer = L.layerGroup().addTo(map);
 
-// Add Toggle Controls
-let overlays = { "Water Data": waterLayer, "Bird Data": birdLayer, "Depth Data": depthLayer };
-L.control.layers(null, overlays).addTo(map);
+let overlays = {
+  "Water Data": waterLayer,
+  "Bird Sightings": birdLayer,
+  "Depth Data": depthLayer
+};
+L.control.layers(null, overlays).addTo(map); // Toggle Controls
 
-let waypoints = [];
-let routeLine = L.polyline([], {color: 'red', weight: 4}).addTo(map);
-
-map.on('click', e => {
-  waypoints.push({lat: e.latlng.lat, lon: e.latlng.lng});
-  routeLine.setLatLngs(waypoints.map(w => [w.lat, w.lon]));
-});
-
-async function refresh() {
+async function fetchData() {
   const headers = { "X-API-Key": API_KEY };
   try {
-    const status = await fetch(`${BASE_URL}/status`, { headers }).then(r => r.json());
-    document.getElementById("batteryValue").innerText = "Battery: " + status.battery;
-    document.getElementById("lastUpdate").innerText = "Last Seen: " + status.last_seen_pi;
-    document.getElementById("rockingBox").style.opacity = status.excessive_rocking ? "1" : "0.2";
+    // Update Status
+    const status = await fetch('/status', { headers }).then(r => r.json());
+    document.getElementById("batteryText").innerText = "Battery: " + status.battery;
+    document.getElementById("lastSeen").innerText = "Last Seen: " + status.last_seen_pi;
 
-    // Fetch and Overlay Data Points
-    const water = await fetch(`${BASE_URL}/rows/water`, { headers }).then(r => r.json());
+    // Fetch Water Data
+    const water = await fetch('/rows/water', { headers }).then(r => r.json());
+    updateTable("waterBody", water, "water");
     waterLayer.clearLayers();
-    water.forEach(p => L.circleMarker([p.lat, p.lon], {color: 'blue', radius: 5}).bindPopup(`Temp: ${p.temp}°C`).addTo(waterLayer));
+    water.forEach(p => L.circleMarker([p.lat, p.lon], {color: 'blue', radius: 6}).bindPopup(`pH: ${p.ph}`).addTo(waterLayer));
 
-    const birds = await fetch(`${BASE_URL}/rows/birds`, { headers }).then(r => r.json());
+    // Fetch Bird Data
+    const birds = await fetch('/rows/birds', { headers }).then(r => r.json());
+    updateTable("birdBody", birds, "birds");
     birdLayer.clearLayers();
-    birds.forEach(p => L.marker([p.lat, p.lon]).bindPopup(`${p.species} (${p.count})`).addTo(birdLayer));
-    
-    // Update Tables
-    updateTable("waterBody", water, 'water');
-    updateTable("birdBody", birds, 'bird');
-  } catch (e) { console.error("Auth Failed or Connection Lost"); }
+    birds.forEach(p => L.marker([p.lat, p.lon]).bindPopup(p.species).addTo(birdLayer));
+
+  } catch (err) { console.error("Access Denied or Server Down"); }
 }
 
-function updateTable(id, rows, type) {
+function updateTable(id, data, type) {
   const body = document.getElementById(id);
-  body.innerHTML = rows.slice().reverse().map(r => `<tr><td>${r.ts.split('T')[1]}</td>${type==='water' ? `<td>${r.tds}</td><td>${r.ph}</td><td>${r.temp}</td>` : `<td>${r.species}</td><td>${r.count}</td>`}</tr>`).join('');
+  body.innerHTML = data.slice().reverse().map(row => {
+    const time = row.ts.split('T')[1].split('.')[0];
+    if (type === "water") {
+      return `<tr><td>${time}</td><td>${row.tds}</td><td>${row.turbidity}</td><td>${row.ph}</td><td>${row.temp}</td></tr>`;
+    } else {
+      return `<tr><td>${time}</td><td>${row.species}</td><td>${row.count}</td></tr>`;
+    }
+  }).join('');
 }
 
-async function clearAllData() {
-  if(confirm("Wipe all logs?")) {
-    await fetch(`${BASE_URL}/clear_all`, { method: "POST", headers: { "X-API-Key": API_KEY } });
+async function clearData() {
+  if (confirm("Clear all logs?")) {
+    await fetch('/clear_all', { method: "POST", headers: { "X-API-Key": API_KEY } });
     location.reload();
   }
 }
 
-setInterval(refresh, 3000);
+setInterval(fetchData, 3000);
+fetchData();
 </script>
 </body>
 </html>
