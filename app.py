@@ -7,20 +7,15 @@ from flask import Flask, request, jsonify, abort, send_from_directory, Response
 # API Key for security (Render environment variable or default)
 API_KEY = os.environ.get("API_KEY", "table_varnish")
 
-def _has_key() -> bool:
-    return (
-        request.headers.get("X-API-Key") == API_KEY
-        or request.args.get("key") == API_KEY
-    )
-
 def require_key():
-    if not _has_key():
+    key = request.headers.get("X-API-Key") or request.args.get("key")
+    if key != API_KEY:
         abort(401)
 
 app = Flask(__name__, static_folder=".", static_url_path="")
 
-# --------- In-memory state ----------
-INITIAL_STATE = {
+# --------- In-memory state (Restored to your original structure) ----------
+STATE = {
     "command": {"mode": "manual", "dir": "stop", "speed": 50},
     "target": {"lat": "", "lon": ""},
     "route": [],
@@ -37,7 +32,6 @@ INITIAL_STATE = {
     }
 }
 
-STATE = dict(INITIAL_STATE)
 LOGS = {"water": [], "birds": [], "depth": [], "motion": []}
 
 @app.route("/")
@@ -47,34 +41,33 @@ def index():
 @app.route("/clear_all", methods=["POST"])
 def clear_all():
     require_key()
-    global LOGS, STATE
+    global LOGS
     LOGS = {"water": [], "birds": [], "depth": [], "motion": []}
-    STATE = dict(INITIAL_STATE)
     return jsonify({"status": "cleared"})
 
 @app.route("/telemetry", methods=["POST"])
 def telemetry():
     require_key()
     data = request.get_json(force=True) or {}
-    STATE["last_seen_pi"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    STATE["last_seen_pi"] = datetime.now(timezone.utc).isoformat()
 
+    # Update state fields
     for field in ["battery", "stuck", "submerged", "excessive_rocking"]:
-        if field in data:
-            STATE["telemetry"][field] = data[field]
+        if field in data: STATE["telemetry"][field] = data[field]
 
-    gps = data.get("gps", STATE["telemetry"].get("gps", {}))
+    gps = data.get("gps", {})
     lat, lon = gps.get("lat"), gps.get("lon")
-    STATE["telemetry"]["gps"] = {"lat": lat, "lon": lon}
+    if lat and lon: STATE["telemetry"]["gps"] = {"lat": lat, "lon": lon}
 
-    ts = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    ts = datetime.now(timezone.utc).isoformat()
 
+    # Log incoming data for tables/map
     if "water" in data:
         LOGS["water"].append({"ts": ts, "lat": lat, "lon": lon, **data["water"]})
     if "birds" in data:
         LOGS["birds"].append({"ts": ts, "lat": lat, "lon": lon, **data["birds"]})
     if "depth" in data:
-        depth_val = data["depth"].get("m") if isinstance(data["depth"], dict) else data["depth"]
-        LOGS["depth"].append({"ts": ts, "lat": lat, "lon": lon, "depth_m": depth_val})
+        LOGS["depth"].append({"ts": ts, "lat": lat, "lon": lon, "depth_m": data["depth"].get("m")})
     
     return jsonify({"status": "ok"})
 
@@ -88,7 +81,7 @@ def get_status():
 @app.route("/rows/<kind>")
 def get_rows(kind):
     require_key()
-    return jsonify(LOGS.get(kind, [])[-100:])
+    return jsonify(LOGS.get(kind, []))
 
 @app.route("/manual", methods=["POST"])
 def manual():
@@ -99,7 +92,7 @@ def manual():
 @app.route("/commands")
 def get_commands():
     require_key()
-    return jsonify({"mode": STATE["command"]["mode"], "manual": STATE["command"], "route": STATE["route"]})
+    return jsonify({"mode": STATE["command"]["mode"], "manual": STATE["command"]})
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
