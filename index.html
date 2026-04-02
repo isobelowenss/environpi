@@ -102,12 +102,18 @@
     </div>
 
     <div class="box">
-      <h3>Bird Detection</h3>
+      <h3>
+        Bird Detection 
+        <span style="float: right; font-size: 12px; font-weight: normal; margin-top: 5px;">
+          <a href="http://birdnetpi.local" target="_blank" style="color: #1976d2; text-decoration: none;">⚙️ BirdNET Settings</a>
+        </span>
+      </h3>
       <div class="table-container"> <table>
           <thead><tr><th>Time</th><th>GPS</th><th>Species</th><th>Count</th></tr></thead>
           <tbody id="birdBody"></tbody>
         </table>
-      </div> <button onclick="downloadCSV('birds')" style="margin-top:10px;">Download Birds CSV</button>
+      </div> 
+      <button onclick="downloadCSV('birds')" style="margin-top:10px;">Download Birds CSV</button>
     </div>
 
     <div class="box">
