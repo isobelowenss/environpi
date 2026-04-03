@@ -288,6 +288,12 @@ let waterPoints = L.layerGroup().addTo(map);
 let birdPoints = L.layerGroup().addTo(map);
 let depthPoints = L.layerGroup().addTo(map);
 
+// Keep track of what we've already plotted so we don't redraw them
+// THIS IS WHAT WAS MISSING!
+let plottedWater = new Set();
+let plottedBirds = new Set();
+let plottedDepth = new Set();
+
 // This adds the "checkbox" menu to the top-right of the map
 let overlayMaps = {
     "Water Data": waterPoints,
@@ -323,15 +329,10 @@ async function sendRoute() {
   alert("Route Sent!");
 }
 
-
 //deals with the drawings of the overlaid map
 function drawMapOverlays(waterData, birdData, depthData) {
-    // Clear old markers before drawing new ones to prevent duplicates
-    waterPoints.clearLayers();
-    birdPoints.clearLayers();
-    depthPoints.clearLayers();
+    // NOTICE: The clearLayers() commands have been completely removed!
 
-    // Draw Water Data (Blue Circles)
     // Draw Water Data (Blue Circles)
     waterData.forEach(p => {
         // Only draw it if we haven't seen this exact timestamp before
@@ -351,23 +352,25 @@ function drawMapOverlays(waterData, birdData, depthData) {
 
     // Draw Bird Data (Standard Markers)
     birdData.forEach(p => {
-        if(p.lat && p.lon) {
+        if(p.lat && p.lon && !plottedBirds.has(p.ts)) {
             L.marker([p.lat, p.lon])
              .bindPopup(`<b>Bird Sighting</b><br>${p.species} (${p.count})`)
              .addTo(birdPoints);
+            plottedBirds.add(p.ts);
         }
     });
 
     // Draw Depth Data (Red Circles)
     depthData.forEach(p => {
-        if(p.lat && p.lon) {
+        if(p.lat && p.lon && !plottedDepth.has(p.ts)) {
             L.circleMarker([p.lat, p.lon], {color: 'red', radius: 4, fillOpacity: 0.8})
              .bindPopup(`<b>Depth</b><br>${p.depth_m}m`)
              .addTo(depthPoints);
+            plottedDepth.add(p.ts);
         }
     });
 }
-
+  
 </script>
 </body>
 </html>
