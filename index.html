@@ -94,7 +94,7 @@
     <div class="box">
       <h3>Water Quality Data</h3>
       <div class="table-container"> <table>
-          <thead><tr><th>Time</th><th>GPS</th><th>TDS</th><th>Turbidity</th><th>pH</th><th>Temp</th></tr></thead>
+          <thead><tr><th>Time</th><th>GPS</th><th>TDS (PPM)</th><th>Turbidity (NTU)</th><th>pH</th><th>Temp (°C)</th></tr></thead>
           <tbody id="waterBody"></tbody>
         </table>
       </div> 
@@ -332,11 +332,20 @@ function drawMapOverlays(waterData, birdData, depthData) {
     depthPoints.clearLayers();
 
     // Draw Water Data (Blue Circles)
+    // Draw Water Data (Blue Circles)
     waterData.forEach(p => {
-        if(p.lat && p.lon) {
+        // Only draw it if we haven't seen this exact timestamp before
+        if(p.lat && p.lon && !plottedWater.has(p.ts)) {
             L.circleMarker([p.lat, p.lon], {color: 'blue', radius: 5, fillOpacity: 0.8})
-             .bindPopup(`<b>Water Sample</b><br>pH: ${p.ph}<br>Temp: ${p.temp}°C`)
+             .bindPopup(`
+                <b>Water Sample</b><br>
+                pH: ${p.ph}<br>
+                Temp: ${p.temp}°C<br>
+                TDS: ${p.tds} PPM<br>
+                Turbidity: ${p.turbidity} NTU
+             `)
              .addTo(waterPoints);
+            plottedWater.add(p.ts); // Mark as drawn
         }
     });
 
