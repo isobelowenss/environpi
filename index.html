@@ -235,6 +235,16 @@ async function refresh() {
     document.getElementById("submergedBox").classList.toggle("active", status.submerged);
     document.getElementById("rockingBox").classList.toggle("active", status.excessive_rocking);
     document.getElementById("leakBox").classList.toggle("active", status.leak);
+    
+    // Updating the leak box with the voltage
+    let leakBox = document.getElementById("leakBox");
+    if (status.leak_voltage !== undefined) {
+        if (status.leak) {
+            leakBox.innerText = `Leak (${status.leak_voltage}V)`;
+        } else {
+            leakBox.innerText = `Dry (${status.leak_voltage}V)`;
+        }
+    }
 
     // Fetch Rows
     const water = await fetch(`${BASE_URL}/rows/water`, { headers }).then(r => r.json());
