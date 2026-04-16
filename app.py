@@ -36,7 +36,9 @@ STATE = {
         "submerged": False,
         "excessive_rocking": False,
         "leak": False,
-        "leak_voltage": 0.0
+        "leak_voltage": 0.0,
+        "last_leak_time": "None",
+        "last_leak_voltage": 0.0
     }
 }
 
@@ -80,6 +82,12 @@ def telemetry():
     for field in ["battery", "stuck", "submerged", "excessive_rocking", "leak", "leak_voltage"]:
         if field in data:
             STATE["telemetry"][field] = data[field]
+
+    # Leak Memory Logic
+    # If a leak is actively happening right now, it updates the memory
+    if data.get("leak") is True:
+        STATE["telemetry"]["last_leak_time"] = ts
+        STATE["telemetry"]["last_leak_voltage"] = data.get("leak_voltage", 0.0)
 
     # Process GPS
     gps = data.get("gps", STATE["telemetry"].get("gps", {}))
