@@ -35,7 +35,8 @@ STATE = {
         "stuck": False,
         "submerged": False,
         "excessive_rocking": False,
-        "leak": False
+        "leak": False,
+        "leak_voltage": 0.0
     }
 }
 
@@ -76,7 +77,7 @@ def telemetry():
     STATE["last_seen_pi"] = now_iso()
 
     # Merge basic status fields
-    for field in ["battery", "stuck", "submerged", "excessive_rocking", "leak"]:
+    for field in ["battery", "stuck", "submerged", "excessive_rocking", "leak", "leak_voltage"]:
         if field in data:
             STATE["telemetry"][field] = data[field]
 
