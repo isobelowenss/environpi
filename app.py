@@ -75,8 +75,10 @@ def telemetry():
     require_key()
     data = request.get_json(force=True) or {}
 
+    ts = now_iso()
+
     # Update Pi Heartbeat
-    STATE["last_seen_pi"] = now_iso()
+    STATE["last_seen_pi"] = ts
 
     # Merge basic status fields
     for field in ["battery", "stuck", "submerged", "excessive_rocking", "leak", "leak_voltage"]:
@@ -93,8 +95,6 @@ def telemetry():
     gps = data.get("gps", STATE["telemetry"].get("gps", {}))
     lat, lon = to_float(gps.get("lat")), to_float(gps.get("lon"))
     STATE["telemetry"]["gps"] = {"lat": lat, "lon": lon}
-
-    ts = now_iso()
 
     # 1. Water Quality Log
     w = data.get("water")
