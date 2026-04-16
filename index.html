@@ -51,7 +51,7 @@
     .controls button { height: 60px; background: #fff; color: #333; border: 1px solid #ccc; font-size: 20px; }
     .up { grid-column: 2; } .left { grid-column: 1; grid-row: 2; } .right { grid-column: 3; grid-row: 2; } .down { grid-column: 2; grid-row: 3; }
 
-    .status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+    .status-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
     .status-tile { background: #f1f8ff; border: 1px solid #d1e9ff; border-radius: 8px; padding: 15px; text-align: center; }
     .status-tile .value { font-size: 18px; font-weight: bold; color: #0d47a1; margin-top: 5px; }
 
@@ -154,6 +154,12 @@
           <div>Last Pi Contact</div>
           <div class="value" id="lastUpdate">Never</div>
         </div>
+        
+        <div class="status-tile">
+          <div>Last Leak Event</div>
+          <div class="value" id="lastLeakValue" style="font-size: 15px;">None</div>
+        </div>
+        
       </div>
       <div class="alerts">
         <div id="stuckBox" class="alert">Stuck</div>
@@ -230,6 +236,15 @@ async function refresh() {
     // Update UI Status
     document.getElementById("batteryValue").textContent = status.battery || "Unknown";
     document.getElementById("lastUpdate").textContent = status.last_seen_pi || "Never";
+    
+    // Update Last Leak Memory
+    let leakTimeText = "None";
+    if (status.last_leak_time && status.last_leak_time !== "None") {
+        // Cut off the date part to just show the HH:MM:SS time
+        let timeOnly = status.last_leak_time.split('T')[1];
+        leakTimeText = `${timeOnly} (${status.last_leak_voltage}V)`;
+    }
+    document.getElementById("lastLeakValue").textContent = leakTimeText;
     
     // Toggle Alerts
     document.getElementById("stuckBox").classList.toggle("active", status.stuck);
