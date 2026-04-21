@@ -38,7 +38,8 @@ STATE = {
         "leak": False,
         "leak_voltage": 0.0,
         "last_leak_time": "None",
-        "last_leak_voltage": 0.0
+        "last_leak_voltage": 0.0,
+        "last_log_time": 0.0
     }
 }
 
@@ -96,31 +97,40 @@ def telemetry():
     lat, lon = to_float(gps.get("lat")), to_float(gps.get("lon"))
     STATE["telemetry"]["gps"] = {"lat": lat, "lon": lon}
 
-    # 1. Water Quality Log
     w = data.get("water")
-    if isinstance(w, dict):
-        row = {"ts": ts, "lat": lat, "lon": lon, **w}
-        append_log("water", row)
-        STATE["telemetry"]["water"] = w
+    if isinstance(w, dict): STATE["telemetry"]["water"] = w
 
-    # 2. Bird Detection Log
     b = data.get("birds")
-    if isinstance(b, dict):
-        row = {"ts": ts, "lat": lat, "lon": lon, **b}
-        append_log("birds", row)
-        STATE["telemetry"]["birds"] = b
+    if isinstance(b, dict): STATE["telemetry"]["birds"] = b
 
-    # 3. Depth Log
     d = data.get("depth")
     depth_val = to_float(d.get("m") if isinstance(d, dict) else d)
-    if depth_val is not None:
-        append_log("depth", {"ts": ts, "lat": lat, "lon": lon, "depth_m": depth_val})
-        STATE["telemetry"]["depth"] = {"m": depth_val}
+    if depth_val is not None: STATE["telemetry"]["depth"] = {"m": depth_val}
 
-    # 4. Accelerometer/Motion Log (New)
-    acc = data.get("accel")
-    if isinstance(acc, dict):
-        append_log("motion", {"ts": ts, "lat": lat, "lon": lon, **acc})
+    # === THE 30-SECOND LOGGING GATEKEEPER ===
+    # Only push data into the tables & CSVs if 30 seconds have passed
+    import time
+    current_time = time.time()
+    
+    if current_time - STATE["last_log_time"] >= 30.0:
+        STATE["last_log_time"] = current_time
+        
+        # 1. Water Quality Table
+        if isinstance(w, dict):
+            append_log("water", {"ts": ts, "lat": lat, "lon": lon, **w})
+            
+        # 2. Bird Detection Table
+        if isinstance(b, dict):
+            append_log("birds", {"ts": ts, "lat": lat, "lon": lon, **b})
+            
+        # 3. Depth Table
+        if depth_val is not None:
+            append_log("depth", {"ts": ts, "lat": lat, "lon": lon, "depth_m": depth_val})
+            
+        # 4. Motion/Accelerometer Table
+        acc = data.get("accel")
+        if isinstance(acc, dict):
+            append_log("motion", {"ts": ts, "lat": lat, "lon": lon, **acc})
 
     return jsonify({"status": "ok", "time": ts})
 
