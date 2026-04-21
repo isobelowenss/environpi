@@ -121,7 +121,7 @@
       <h3>Depth & Motion Logs</h3>
       <div class="table-container"> <table>
           <thead><tr><th>Time</th><th>Type</th><th>Value/Axes</th></tr></thead>
-          <tbody id="miscBody"></tbody>
+          <tbody id="depthBody"></tbody>
         </table>
       </div> 
       <button onclick="downloadCSV('depth')" style="width:48%; display:inline-block;">Depth CSV</button>
@@ -265,11 +265,12 @@ async function refresh() {
     // Fetch Rows
     const water = await fetch(`${BASE_URL}/rows/water`, { headers }).then(r => r.json());
     const birds = await fetch(`${BASE_URL}/rows/birds`, { headers }).then(r => r.json());
-    
+    const depth = await fetch(`${BASE_URL}/rows/depth`, { headers }).then(r => r.json());
+
     updateTable("waterBody", water, 'water');
     updateTable("birdBody", birds, 'birds');
-
-    const depth = await fetch(`${BASE_URL}/rows/depth`, { headers }).then(r => r.json());// Fetching the depth rows, it already fetched the water + bird
+    updateTable("depthBody", depth, 'depth');
+    
     drawMapOverlays(water, birds, depth); // 2. Call the new drawing function with all the data
   } catch (e) { 
       console.error("Update failed", e);
@@ -289,8 +290,10 @@ function updateTable(id, rows, type) {
     const tr = document.createElement("tr");
     if (type === 'water') {
       tr.innerHTML = `<td>${r.ts.split('T')[1]}</td><td>${fmtGPS(r.lat, r.lon)}</td><td>${r.tds}</td><td>${r.turbidity}</td><td>${r.ph}</td><td>${r.temp}</td>`;
-    } else {
+    } else if (type == 'birds'){
       tr.innerHTML = `<td>${r.ts.split('T')[1]}</td><td>${fmtGPS(r.lat, r.lon)}</td><td>${r.species}</td><td>${r.count}</td>`;
+    } else if (type == 'depth'){
+      tr.innerHTML = `<td>${r.ts.split('T')[1]}</td><td>Depth</td><td>${r.depth_m} m</td>`;
     }
     body.appendChild(tr);
   });
