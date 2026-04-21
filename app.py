@@ -26,6 +26,7 @@ STATE = {
     "target": {"lat": "", "lon": ""},
     "route": [],
     "last_seen_pi": "Never",
+    "last_log_time": 0.0,
     "telemetry": {
         "gps": {"lat": 52.0, "lon": 1.0},
         "water": {"tds": 0, "turbidity": 0, "ph": 7.0, "temp": 0.0},
@@ -38,8 +39,7 @@ STATE = {
         "leak": False,
         "leak_voltage": 0.0,
         "last_leak_time": "None",
-        "last_leak_voltage": 0.0,
-        "last_log_time": 0.0
+        "last_leak_voltage": 0.0
     }
 }
 
