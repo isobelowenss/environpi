@@ -266,12 +266,14 @@ async function refresh() {
     const water = await fetch(`${BASE_URL}/rows/water`, { headers }).then(r => r.json());
     const birds = await fetch(`${BASE_URL}/rows/birds`, { headers }).then(r => r.json());
     const depth = await fetch(`${BASE_URL}/rows/depth`, { headers }).then(r => r.json());
+    const motion = await fetch(`${BASE_URL}/rows/motion`, { headers }).then(r => r.json());
 
     updateTable("waterBody", water, 'water');
     updateTable("birdBody", birds, 'birds');
     updateTable("depthBody", depth, 'depth');
+    updateTable("motionBody", motion, 'motion');
     
-    drawMapOverlays(water, birds, depth); // 2. Call the new drawing function with all the data
+    drawMapOverlays(water, birds, depth);
   } catch (e) { 
       console.error("Update failed", e);
       // If the server rejects the key, clear the saved key and ask again
@@ -292,9 +294,13 @@ function updateTable(id, rows, type) {
       tr.innerHTML = `<td>${r.ts.split('T')[1]}</td><td>${fmtGPS(r.lat, r.lon)}</td><td>${r.tds}</td><td>${r.turbidity}</td><td>${r.ph}</td><td>${r.temp}</td>`;
     } else if (type == 'birds'){
       tr.innerHTML = `<td>${r.ts.split('T')[1]}</td><td>${fmtGPS(r.lat, r.lon)}</td><td>${r.species}</td><td>${r.count}</td>`;
-    } else if (type == 'depth'){
-      tr.innerHTML = `<td>${r.ts.split('T')[1]}</td><td>Depth</td><td>${r.depth_m} m</td>`;
+    } else if (type === 'depth'){
+      tr.innerHTML = `<td>${r.ts.split('T')[1]}</td><td>${fmtGPS(r.lat, r.lon)}</td><td>${r.depth_m} m</td>`;
+    } else if (type === 'motion'){
+      // --- NEW: Format the 3 axes for the motion table ---
+      tr.innerHTML = `<td>${r.ts.split('T')[1]}</td><td>${fmtGPS(r.lat, r.lon)}</td><td>${r.x} g</td><td>${r.y} g</td><td>${r.z} g</td>`;
     }
+    
     body.appendChild(tr);
   });
 }
