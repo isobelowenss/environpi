@@ -118,14 +118,23 @@
     </div>
 
     <div class="box">
-      <h3>Depth & Motion Logs</h3>
-      <div class="table-container"> <table>
-          <thead><tr><th>Time</th><th>Type</th><th>Value/Axes</th></tr></thead>
+      <h3>Depth Logs</h3>
+      <div class="table-container" style="max-height: 140px;"> 
+        <table>
+          <thead><tr><th>Time</th><th>GPS</th><th>Depth (m)</th></tr></thead>
           <tbody id="depthBody"></tbody>
         </table>
       </div> 
-      <button onclick="downloadCSV('depth')" style="width:48%; display:inline-block;">Depth CSV</button>
-      <button onclick="downloadCSV('motion')" style="width:48%; display:inline-block; float:right;">Motion CSV</button>
+      <button onclick="downloadCSV('depth')" style="margin-bottom: 20px;">Download Depth CSV</button>
+
+      <h3>Motion Logs</h3>
+      <div class="table-container" style="max-height: 140px;"> 
+        <table>
+          <thead><tr><th>Time</th><th>GPS</th><th>X (Tilt)</th><th>Y (Pitch)</th><th>Z (Gravity)</th></tr></thead>
+          <tbody id="motionBody"></tbody>
+        </table>
+      </div> 
+      <button onclick="downloadCSV('motion')">Download Motion CSV</button>
     </div>
 
   </div>
