@@ -510,7 +510,7 @@ function init3D() {
         if (boatModel) { // I am having quite a few issues with like the orientation of the axis - i think some are flipped.
             // If the boat tilts backwards when it should tilt forwards, change pitchDir to -1
             // If the boat rolls right when it should roll left, change rollDir to -1
-            let pitchDir = -1;  // Try flipping this to 1 if pitch is backwards
+            let pitchDir = 1;  // Try flipping this to 1 if pitch is backwards
             let rollDir = 1;    // Try flipping this to -1 if roll is backwards
             
             let finalPitch = window.targetPitch * pitchDir;
