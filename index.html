@@ -460,9 +460,7 @@ function init3D() {
     const deckMaterial = new THREE.MeshLambertMaterial({ color: 0x999999 }); 
     const redFrontMaterial = new THREE.MeshLambertMaterial({ color: 0xff0000 }); 
 
-    // ==========================================
     // 2. BIGGER BOAT GEOMETRY
-    // ==========================================
     // Hulls are now thicker (0.8x1.2) and longer (8), spaced further apart (+/- 1.2)
     const leftHull = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.2, 8), hullMaterial);
     leftHull.position.set(-1.2, 0, 0); 
