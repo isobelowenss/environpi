@@ -440,16 +440,16 @@ function init3D() {
     const container = document.getElementById('boat3D');
     const scene = new THREE.Scene();
 
-    // Front-Left Diagonal
+    // 1. Flipped Camera to Front-Right Diagonal & pulled back to fit the larger boat
     const camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 1000);
-    camera.position.set(-4, 4, 5); // Shifted Left (-4), Up (4), and Forward (5)
-    camera.lookAt(0, 0, 0);        // Always stare directly at the center
+    camera.position.set(5, 5, 6); 
+    camera.lookAt(0, 0, 0);
 
     const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
     renderer.setSize(container.clientWidth, container.clientHeight);
     container.appendChild(renderer.domElement);
 
-    const light = new THREE.DirectionalLight(0xffffff, 1.2); // Made light slightly brighter
+    const light = new THREE.DirectionalLight(0xffffff, 1.2);
     light.position.set(5, 10, 5);
     scene.add(light);
     scene.add(new THREE.AmbientLight(0x606060));
@@ -460,30 +460,48 @@ function init3D() {
     const deckMaterial = new THREE.MeshLambertMaterial({ color: 0x999999 }); 
     const redFrontMaterial = new THREE.MeshLambertMaterial({ color: 0xff0000 }); 
 
-    // --- 2. NARROWER CATAMARAN PROPORTIONS ---
-    // Brought hulls inward from +/- 1.0 to +/- 0.6
-    const leftHull = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.6, 4), hullMaterial);
-    leftHull.position.set(-0.6, 0, 0); 
+    // --- 2. BIGGER CATAMARAN (Scaled up ~1.5x) ---
+    const leftHull = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.9, 6), hullMaterial);
+    leftHull.position.set(-0.9, 0, 0); 
     boatModel.add(leftHull);
 
-    const rightHull = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.6, 4), hullMaterial);
-    rightHull.position.set(0.6, 0, 0); 
+    const rightHull = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.9, 6), hullMaterial);
+    rightHull.position.set(0.9, 0, 0); 
     boatModel.add(rightHull);
 
-    // Shrunk deck width from 2.0 to 1.2 to match new hulls
-    const deck = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.2, 2.5), deckMaterial);
-    deck.position.set(0, 0.4, -0.5); 
+    const deck = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.3, 3.75), deckMaterial);
+    deck.position.set(0, 0.6, -0.75); 
     boatModel.add(deck);
 
-    // Shrunk red nose to fit the narrower deck
-    const nose = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.3, 0.5), redFrontMaterial);
-    nose.position.set(0, 0.65, 0.5); 
+    const nose = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.45, 0.75), redFrontMaterial);
+    nose.position.set(0, 0.975, 0.75); 
     boatModel.add(nose);
 
-    // ADD THE AXES HELPER ---
-    // Red=X, Green=Y, Blue=Z. It extends 3 units outward from the center.
-    const axesHelper = new THREE.AxesHelper(3); 
+    // --- 3 & 4. EXTENDED AXES WITH LABELS ---
+    const axesHelper = new THREE.AxesHelper(4); 
     boatModel.add(axesHelper);
+
+    // Helper function to create text labels in 3D space
+    function makeLabel(text, color, x, y, z) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 64; canvas.height = 64;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = color;
+        ctx.font = 'Bold 40px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(text, 32, 48);
+        
+        const texture = new THREE.CanvasTexture(canvas);
+        const spriteMaterial = new THREE.SpriteMaterial({ map: texture });
+        const sprite = new THREE.Sprite(spriteMaterial);
+        sprite.position.set(x, y, z);
+        return sprite;
+    }
+
+    // Attach labels slightly past the ends of the axes lines
+    boatModel.add(makeLabel('X', '#ff0000', 4.5, 0, 0));
+    boatModel.add(makeLabel('Y', '#00aa00', 0, 4.5, 0));
+    boatModel.add(makeLabel('Z', '#0000ff', 0, 0, 4.5));
 
     scene.add(boatModel);
 
