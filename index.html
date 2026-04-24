@@ -224,7 +224,7 @@ async function checkAccess() {
             init3D();
 
             refresh(); 
-            setInterval(refresh, 500); // was 2000 = 2 seconds
+            setInterval(refresh, 200); // was 2000 = 2 seconds
         } else {
             // KEY IS WRONG
             alert("Access Denied: Invalid API Key.");
@@ -255,14 +255,9 @@ async function refresh() {
 
     // Updates the 3D Catamaran Tilt
     if (status.accel && boatModel) {
-        // Convert the raw G-force into a rotational angle (Radians) using arcsin
-        // We clamp the value between -1 and 1 to prevent math crashes
-        let pitchAngle = Math.asin(Math.max(-1, Math.min(1, status.accel.y)));
-        let rollAngle = Math.asin(Math.max(-1, Math.min(1, status.accel.x)));
-        
-        // Apply the rotation directly to the entire Catamaran group
-        boatModel.rotation.x = pitchAngle;
-        boatModel.rotation.z = -rollAngle; 
+        // Attach the 'target' variables directly to the window so the 3D loop can see them
+        window.targetPitch = Math.asin(Math.max(-1, Math.min(1, status.accel.y)));
+        window.targetRoll = Math.asin(Math.max(-1, Math.min(1, status.accel.x)));
     }
     
     // Update Last Leak Memory
@@ -483,8 +478,17 @@ function init3D() {
 
     scene.add(boatModel);
 
+    window.targetPitch = 0;
+    window.targetRoll = 0;
+
     function animate() {
         requestAnimationFrame(animate);
+        
+        if (boatModel) {
+            boatModel.rotation.x += (window.targetPitch - boatModel.rotation.x) * 0.1;
+            boatModel.rotation.z += (-window.targetRoll - boatModel.rotation.z) * 0.1;
+        }
+
         renderer.render(scene, camera);
     }
     animate();
