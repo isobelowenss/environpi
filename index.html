@@ -224,7 +224,7 @@ async function checkAccess() {
             init3D();
 
             refresh(); 
-            setInterval(refresh, 2000);
+            setInterval(refresh, 500); # was 2000 = 2 seconds
         } else {
             // KEY IS WRONG
             alert("Access Denied: Invalid API Key.");
