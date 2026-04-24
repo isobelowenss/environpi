@@ -440,9 +440,9 @@ function init3D() {
     const container = document.getElementById('boat3D');
     const scene = new THREE.Scene();
 
-    // 1. Flipped Camera to Front-Right Diagonal & pulled back to fit the larger boat
+    // 1. Adjusted Camera: More frontal view, pulled back slightly so Y-axis fits perfectly
     const camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 1000);
-    camera.position.set(5, 5, 6); 
+    camera.position.set(3.5, 4.5, 7.5); 
     camera.lookAt(0, 0, 0);
 
     const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
@@ -460,7 +460,6 @@ function init3D() {
     const deckMaterial = new THREE.MeshLambertMaterial({ color: 0x999999 }); 
     const redFrontMaterial = new THREE.MeshLambertMaterial({ color: 0xff0000 }); 
 
-    // --- 2. BIGGER CATAMARAN (Scaled up ~1.5x) ---
     const leftHull = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.9, 6), hullMaterial);
     leftHull.position.set(-0.9, 0, 0); 
     boatModel.add(leftHull);
@@ -469,19 +468,20 @@ function init3D() {
     rightHull.position.set(0.9, 0, 0); 
     boatModel.add(rightHull);
 
-    const deck = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.3, 3.75), deckMaterial);
-    deck.position.set(0, 0.6, -0.75); 
+    // 2. Extended Deck: Made it longer (5.0) and shifted it forward to sit flush with the hull tips
+    const deck = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.3, 5.0), deckMaterial);
+    deck.position.set(0, 0.6, 0.5); 
     boatModel.add(deck);
 
+    // Shifted the red nose to the new absolute front of the deck
     const nose = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.45, 0.75), redFrontMaterial);
-    nose.position.set(0, 0.975, 0.75); 
+    nose.position.set(0, 0.975, 2.625); 
     boatModel.add(nose);
 
-    // --- 3 & 4. EXTENDED AXES WITH LABELS ---
+    // --- AXES AND LABELS ---
     const axesHelper = new THREE.AxesHelper(4); 
     boatModel.add(axesHelper);
 
-    // Helper function to create text labels in 3D space
     function makeLabel(text, color, x, y, z) {
         const canvas = document.createElement('canvas');
         canvas.width = 64; canvas.height = 64;
@@ -498,14 +498,13 @@ function init3D() {
         return sprite;
     }
 
-    // Attach labels slightly past the ends of the axes lines
+    // Lowered the Y label slightly to absolutely guarantee it doesn't get cut off
     boatModel.add(makeLabel('X', '#ff0000', 4.5, 0, 0));
-    boatModel.add(makeLabel('Y', '#00aa00', 0, 4.5, 0));
+    boatModel.add(makeLabel('Y', '#00aa00', 0, 4.2, 0));
     boatModel.add(makeLabel('Z', '#0000ff', 0, 0, 4.5));
 
     scene.add(boatModel);
 
-    // Default starting targets
     window.targetPitch = 0;
     window.targetRoll = 0;
 
@@ -513,7 +512,6 @@ function init3D() {
         requestAnimationFrame(animate);
         
         if (boatModel) {
-            // LERP shock-absorber for smooth movement
             boatModel.rotation.x += (window.targetPitch - boatModel.rotation.x) * 0.1;
             boatModel.rotation.z += (-window.targetRoll - boatModel.rotation.z) * 0.1;
         }
