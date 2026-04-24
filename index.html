@@ -440,9 +440,9 @@ function init3D() {
     const container = document.getElementById('boat3D');
     const scene = new THREE.Scene();
 
-    // 1. Adjusted Camera: More frontal view, pulled back slightly so Y-axis fits perfectly
+    // 1. Pulled camera back and up to completely fix the Y-axis cutoff
     const camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 1000);
-    camera.position.set(3.5, 4.5, 7.5); 
+    camera.position.set(5, 6.5, 9.5); 
     camera.lookAt(0, 0, 0);
 
     const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
@@ -468,17 +468,14 @@ function init3D() {
     rightHull.position.set(0.9, 0, 0); 
     boatModel.add(rightHull);
 
-    // 2. Extended Deck: Made it longer (5.0) and shifted it forward to sit flush with the hull tips
     const deck = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.3, 5.0), deckMaterial);
     deck.position.set(0, 0.6, 0.5); 
     boatModel.add(deck);
 
-    // Shifted the red nose to the new absolute front of the deck
     const nose = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.45, 0.75), redFrontMaterial);
     nose.position.set(0, 0.975, 2.625); 
     boatModel.add(nose);
 
-    // --- AXES AND LABELS ---
     const axesHelper = new THREE.AxesHelper(4); 
     boatModel.add(axesHelper);
 
@@ -498,9 +495,8 @@ function init3D() {
         return sprite;
     }
 
-    // Lowered the Y label slightly to absolutely guarantee it doesn't get cut off
     boatModel.add(makeLabel('X', '#ff0000', 4.5, 0, 0));
-    boatModel.add(makeLabel('Y', '#00aa00', 0, 4.2, 0));
+    boatModel.add(makeLabel('Y', '#00aa00', 0, 4.5, 0));
     boatModel.add(makeLabel('Z', '#0000ff', 0, 0, 4.5));
 
     scene.add(boatModel);
@@ -511,9 +507,17 @@ function init3D() {
     function animate() {
         requestAnimationFrame(animate);
         
-        if (boatModel) {
-            boatModel.rotation.x += (window.targetPitch - boatModel.rotation.x) * 0.1;
-            boatModel.rotation.z += (-window.targetRoll - boatModel.rotation.z) * 0.1;
+        if (boatModel) { // I am having quite a few issues with like the orientation of the axis - i think some are flipped.
+            // If the boat tilts backwards when it should tilt forwards, change pitchDir to -1
+            // If the boat rolls right when it should roll left, change rollDir to -1
+            let pitchDir = -1;  // Try flipping this to 1 if pitch is backwards
+            let rollDir = 1;    // Try flipping this to -1 if roll is backwards
+            
+            let finalPitch = window.targetPitch * pitchDir;
+            let finalRoll = window.targetRoll * rollDir;
+
+            boatModel.rotation.x += (finalPitch - boatModel.rotation.x) * 0.1;
+            boatModel.rotation.z += (finalRoll - boatModel.rotation.z) * 0.1;
         }
 
         renderer.render(scene, camera);
