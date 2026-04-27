@@ -9,6 +9,34 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
   <style>
+    /* start of compass setting up stuff */
+    .compass-container {
+      display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 10px;
+    }
+    .compass-dial {
+      width: 120px; height: 120px; border-radius: 50%; border: 4px solid #0d47a1;
+      position: relative; background: #f1f8ff; box-shadow: inset 0 0 10px rgba(0,0,0,0.1);
+    }
+    /* North/South/East/West Labels */
+    .compass-dial::before { content: 'N'; position: absolute; top: 5px; left: 50%; transform: translateX(-50%); font-weight: bold; color: #d32f2f; }
+    .compass-dial::after { content: 'S'; position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); font-weight: bold; color: #333; }
+    .compass-e { position: absolute; top: 50%; right: 5px; transform: translateY(-50%); font-weight: bold; color: #333; }
+    .compass-w { position: absolute; top: 50%; left: 5px; transform: translateY(-50%); font-weight: bold; color: #333; }
+    
+    /* The Needle */
+    .compass-needle {
+      width: 4px; height: 100%; position: absolute; top: 0; left: 50%; margin-left: -2px;
+      transition: transform 0.3s ease-out; /* Smooth rotation */
+    }
+    .compass-needle::before {
+      content: ''; position: absolute; top: 15%; left: -6px;
+      border-left: 8px solid transparent; border-right: 8px solid transparent; border-bottom: 35px solid #d32f2f;
+    }
+    .compass-needle::after {
+      content: ''; position: absolute; bottom: 15%; left: -6px;
+      border-left: 8px solid transparent; border-right: 8px solid transparent; border-top: 35px solid #555;
+    } /* this is the end of the compass setting up stuff */
+    
     body {
       margin: 0;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -154,6 +182,21 @@
     </div>
 
     <div class="box">
+      <h3>GPS Course Over Ground</h3>
+      <div class="compass-container">
+        <div class="compass-dial">
+          <div class="compass-e">E</div>
+          <div class="compass-w">W</div>
+          <div id="compassNeedle" class="compass-needle"></div>
+        </div>
+        <div id="headingText" style="margin-top: 15px; font-size: 18px; font-weight: bold; color: #0d47a1;">0°</div>
+      </div>
+      <div class="route-list" style="margin-top: 10px; text-align: center;">
+        Updates only while boat is moving > 0.5m
+      </div>
+    </div>
+
+    <div class="box">
       <h3>Live Boat Bearings for Tilt and Roll</h3>
       <div id="boat3D" style="width: 100%; height: 250px; background-color: #e0f7fa; border-radius: 8px;"></div>
       
@@ -257,6 +300,13 @@ async function refresh() {
     document.getElementById("batteryValue").textContent = status.battery || "Unknown";
     document.getElementById("lastUpdate").textContent = status.last_seen_pi || "Never";
 
+    // Compass updates
+    if (status.heading !== undefined) {
+        let headingDeg = Math.round(status.heading);
+        document.getElementById("compassNeedle").style.transform = `rotate(${headingDeg}deg)`;
+        document.getElementById("headingText").textContent = `${headingDeg}°`;
+    }
+    
     // Updates the 3D Catamaran Tilt
     if (status.accel && boatModel) {
         // Attach the 'target' variables directly to the window so the 3D loop can see them
@@ -354,7 +404,7 @@ let birdPoints = L.layerGroup().addTo(map);
 let depthPoints = L.layerGroup().addTo(map);
 
 // Keep track of what we've already plotted so we don't redraw them
-// THIS IS WHAT WAS MISSING!
+// THIS IS WHAT WAS MISSING
 let plottedWater = new Set();
 let plottedBirds = new Set();
 let plottedDepth = new Set();
