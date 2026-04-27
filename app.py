@@ -82,7 +82,7 @@ def telemetry():
     STATE["last_seen_pi"] = ts
 
     # Merge basic status fields
-    for field in ["battery", "stuck", "submerged", "excessive_rocking", "leak", "leak_voltage", "accel", "heading"]:
+    for field in ["battery", "stuck", "submerged", "excessive_rocking", "leak", "leak_voltage", "accel", "heading", "obstacles"]:
         if field in data:
             STATE["telemetry"][field] = data[field]
 
