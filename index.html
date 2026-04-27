@@ -168,8 +168,8 @@
 
     <div class="box">
       <h3>Live LiDAR Radar (8m Range)</h3>
-      <div style="display: flex; justify-content: center; align-items: center; padding: 10px; background-color: #111; border-radius: 8px;">
-        <canvas id="radarCanvas" width="300" height="300" style="border-radius: 50%; border: 2px solid #00ff00; box-shadow: 0 0 15px rgba(0,255,0,0.2);"></canvas>
+      <div style="display: flex; justify-content: center; align-items: center; padding: 10px; background-color: #d0f7c8; border-radius: 8px;">
+        <canvas id="radarCanvas" width="300" height="300" style="border-radius: 50%; border: 2px solid #6d8769; box-shadow: 0 0 15px rgba(0,255,0,0.2);"></canvas>
       </div>
       <div class="route-list" style="margin-top: 10px; text-align: center;">
         Red dots are tracked physical objects. Center is the boat.
@@ -317,7 +317,7 @@ async function refresh() {
         document.getElementById("headingText").textContent = `${headingDeg}°`;
     }
 
-    drawRadar(status.obstacles);
+    drawRadar(status.obstacles, status.raw_points);
     
     // Updates the 3D Catamaran Tilt
     if (status.accel && boatModel) {
@@ -374,7 +374,7 @@ async function refresh() {
 
 }
 
-function drawRadar(obstacles) {
+function drawRadar(obstacles, raw_points) {
         const canvas = document.getElementById('radarCanvas');
         const ctx = canvas.getContext('2d');
         const width = canvas.width;
@@ -382,14 +382,11 @@ function drawRadar(obstacles) {
         const center_x = width / 2;
         const center_y = height / 2;
         
-        // 1 meter = 18 pixels (fits an 8m radius nicely inside a 300px canvas)
         const scale = 18.0; 
 
-        // Clear previous frame and draw radar background
         ctx.clearRect(0, 0, width, height);
         
-        // Draw distance rings (2m, 4m, 6m, 8m)
-        ctx.strokeStyle = 'rgba(0, 255, 0, 0.3)';
+        ctx.strokeStyle = 'rgba(156, 154, 151, 0.3)';
         ctx.lineWidth = 1;
         for (let i = 1; i <= 4; i++) {
             ctx.beginPath();
@@ -397,31 +394,39 @@ function drawRadar(obstacles) {
             ctx.stroke();
         }
 
-        // Draw Crosshairs
         ctx.beginPath();
         ctx.moveTo(center_x, 0); ctx.lineTo(center_x, height);
         ctx.moveTo(0, center_y); ctx.lineTo(width, center_y);
         ctx.stroke();
 
+        // --- NEW: Draw the Raw LiDAR Outline (Faint Green) ---
+        if (raw_points && raw_points.length > 0) {
+            ctx.fillStyle = 'rgba(0, 255, 0, 0.5)';
+            raw_points.forEach(pt => {
+                let canvas_x = center_x - (pt.y * scale);
+                let canvas_y = center_y - (pt.x * scale);
+                ctx.beginPath();
+                ctx.arc(canvas_x, canvas_y, 1.5, 0, 2 * Math.PI);
+                ctx.fill();
+            });
+        }
+
         // Draw the Boat (Center)
         ctx.fillStyle = '#00aaff';
-        ctx.fillRect(center_x - 5, center_y - 10, 10, 20); // Simple rectangle for the boat
+        ctx.fillRect(center_x - 5, center_y - 10, 10, 20);
 
-        // Draw the Obstacles
+        // Draw the Tracked Obstacles (Red Dots)
         if (obstacles && obstacles.length > 0) {
-            ctx.fillStyle = '#ff0000'; // Red dots for danger
+            ctx.fillStyle = '#ff0000'; 
             obstacles.forEach(obs => {
-                // The LiDAR code uses X for forward and Y for left.
-                // We map LiDAR X to Canvas -Y (up), and LiDAR Y to Canvas -X (left)
                 let canvas_x = center_x - (obs.y * scale);
                 let canvas_y = center_y - (obs.x * scale);
-                
                 ctx.beginPath();
                 ctx.arc(canvas_x, canvas_y, 4, 0, 2 * Math.PI);
                 ctx.fill();
             });
         }
-}
+    }
 
 function updateTable(id, rows, type) {
   const body = document.getElementById(id);
