@@ -1,8 +1,14 @@
 import os
 import csv
 import io
-from datetime import datetime, timezone
 from flask import Flask, request, jsonify, abort, send_from_directory, Response
+from datetime import datetime
+try:
+    from zoneinfo import ZoneInfo
+    uk_tz = ZoneInfo("Europe/London")
+except ImportError:
+    import pytz # Fallback
+    uk_tz = pytz.timezone("Europe/London")
 
 # API Key for security (Render environment variable or default)
 API_KEY = os.environ.get("API_KEY", "table_varnish")
@@ -34,12 +40,14 @@ STATE = {
         "birds": {"species": "None", "count": 0},
         "battery": "Unknown",
         "stuck": False,
-        "submerged": False,
+        "grounding": False,
         "excessive_rocking": False,
         "leak": False,
         "leak_voltage": 0.0,
         "last_leak_time": "None",
-        "last_leak_voltage": 0.0
+        "last_leak_voltage": 0.0,
+        "last_grounding_time": "None",
+        "last_grounding_depth": 0.0
     }
 }
 
@@ -53,7 +61,7 @@ LOGS = {
 }
 
 def now_iso():
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return datetime.now(uk_tz).isoformat(timespec="seconds")
 
 def append_log(kind: str, row: dict):
     if kind in LOGS:
@@ -82,15 +90,21 @@ def telemetry():
     STATE["last_seen_pi"] = ts
 
     # Merge basic status fields
-    for field in ["battery", "stuck", "submerged", "excessive_rocking", "leak", "leak_voltage", "accel", "heading", "obstacles", "raw_points"]:
+    for field in ["battery", "stuck", "grounding", "excessive_rocking", "leak", "leak_voltage", "accel", "heading", "obstacles", "raw_points"]:
         if field in data:
             STATE["telemetry"][field] = data[field]
 
-    # Leak Memory Logic
+    # Last Leak Logic
     # If a leak is actively happening right now, it updates the memory
     if data.get("leak") is True:
         STATE["telemetry"]["last_leak_time"] = ts
         STATE["telemetry"]["last_leak_voltage"] = data.get("leak_voltage", 0.0)
+
+    # Last grounding logic
+    if data.get("grounding") is True:
+        STATE["telemetry"]["last_grounding_time"] = ts
+        d = data.get("depth", 0.0)
+        STATE["telemetry"]["last_grounding_depth"] = to_float(d.get("m") if isinstance(d, dict) else d)
 
     # Process GPS
     gps = data.get("gps", STATE["telemetry"].get("gps", {}))
@@ -185,6 +199,12 @@ def set_route():
     require_key(); data = request.get_json(force=True) or {}
     STATE["route"] = data.get("waypoints", [])
     STATE["command"]["mode"] = "auto"
+    return jsonify({"ok": True})
+
+@app.route("/return", methods=["POST"])
+def return_home():
+    require_key()
+    STATE["command"]["mode"] = "return"
     return jsonify({"ok": True})
 
 @app.route("/commands", methods=["GET"])
