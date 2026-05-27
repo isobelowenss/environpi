@@ -253,7 +253,11 @@
       <div class="status-grid">
         <div class="status-tile">
           <div>Battery Status</div>
-          <div class="value" id="batteryValue">Waiting...</div>
+          <div style="width: 50px; height: 20px; border: 2px solid #333; border-radius: 3px; position: relative; margin: 10px auto; background: #eee;">
+            <div style="width: 4px; height: 10px; background: #333; position: absolute; right: -7px; top: 3px; border-radius: 0 2px 2px 0;"></div>
+            <div id="batteryLevel" style="width: 100%; height: 100%; background: #4caf50; transition: width 1s, background-color 1s;"></div>
+          </div>
+          <div class="value" id="batteryValue" style="font-size: 15px;">Waiting...</div>
         </div>
         <div class="status-tile">
           <div>Last Grounding</div>
@@ -344,8 +348,23 @@ async function refresh() {
     const status = await fetch(`${BASE_URL}/status`, { headers }).then(r => r.json());
 
     // Update UI Status
-    document.getElementById("batteryValue").textContent = status.battery || "Unknown";
     document.getElementById("lastUpdate").textContent = status.last_seen_pi || "Never";
+    // Battery updates
+    if (status.battery && typeof status.battery === 'object') { 
+        // Update the text
+        document.getElementById("batteryValue").textContent = `${status.battery.percentage}% (${status.battery.text})`;
+        
+        // Update the visual width of the battery juice
+        let levelBar = document.getElementById("batteryLevel");
+        levelBar.style.width = `${status.battery.percentage}%`;
+        
+        // Change color based on how much is left
+        if (status.battery.percentage > 50) levelBar.style.background = "#92ff6e"; // Green
+        else if (status.battery.percentage > 20) levelBar.style.background = "#f7c852"; // Orange
+        else levelBar.style.background = "#fc714e"; // Red
+    } else {
+        document.getElementById("batteryValue").textContent = status.battery || "Unknown";
+    }
 
     // Compass updates
     if (status.heading !== undefined) {
