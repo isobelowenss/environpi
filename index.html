@@ -111,10 +111,10 @@
     .alerts { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px; margin-top: 15px; }
     .alert { text-align: center; padding: 12px; border-radius: 8px; font-weight: bold; opacity: 0.2; color: white; background: #555; transition: 0.3s; }
     .alert.active { opacity: 1; }
-    #stuckBox.active { background: #f44336; }
-    #submergedBox.active { background: #d32f2f; }
-    #rockingBox.active { background: #ff9800; } /* Orange for rocking warning */
-    #leakBox.active { background: #00bcd4; } /* Cyan for leak warning */
+    #stuckBox.active { background: #e6382c; }
+    #groundingBox.active { background: #cc4818; }
+    #rockingBox.active { background: #ffa624; } 
+    #leakBox.active { background: #00bcd4; }
 
     #map { width: 100%; height: 400px; border-radius: 10px; border: 1px solid #ccc; }
     .route-list { margin-top: 10px; font-size: 12px; max-height: 100px; overflow-y: auto; background: #fafafa; padding: 5px; border-radius: 5px; }
@@ -196,7 +196,7 @@
         <canvas id="radarCanvas" width="300" height="300" style="border-radius: 50%; border: 2px solid #19a603; box-shadow: 0 0 15px rgba(0,255,0,0.2);"></canvas>
       </div>
       <div class="route-list" style="margin-top: 10px; text-align: center;">
-        Red dots are tracked objects.
+        Red dots are tracked objects. Each ring represents 2m.
       </div>
     </div>
 
@@ -211,6 +211,7 @@
         <button onclick="undoWaypoint()" style="background:#777;">Undo</button>
         <button onclick="clearRoute()" style="background:#777;">Clear</button>
         <button onclick="sendRoute()">Transmit Route</button>
+        <button onclick="returnToStart()" style="background:#f57c00;">Return to Start</button>
       </div>
       <div class="route-list" id="routeList">Click map to set waypoints...</div>
     </div>
@@ -255,19 +256,23 @@
           <div class="value" id="batteryValue">Waiting...</div>
         </div>
         <div class="status-tile">
+          <div>Last Grounding</div>
+          <div class="value" id="lastGroundingValue" style="font-size: 15px;">None</div>
+        </div>
+        <div class="status-tile">
           <div>Last Pi Contact</div>
           <div class="value" id="lastUpdate">Never</div>
         </div>
-        
         <div class="status-tile">
           <div>Last Leak</div>
           <div class="value" id="lastLeakValue" style="font-size: 15px;">None</div>
         </div>
         
+        
       </div>
       <div class="alerts">
         <div id="stuckBox" class="alert">Stuck</div>
-        <div id="submergedBox" class="alert">Submerged</div>
+        <div id="groundingBox" class="alert">Grounding</div>
         <div id="rockingBox" class="alert">Rocking</div>
         <div id="leakBox" class="alert">Leak</div>
       </div>
@@ -369,9 +374,22 @@ async function refresh() {
     
     // Toggle Alerts
     document.getElementById("stuckBox").classList.toggle("active", status.stuck);
-    document.getElementById("submergedBox").classList.toggle("active", status.submerged);
     document.getElementById("rockingBox").classList.toggle("active", status.excessive_rocking);
     document.getElementById("leakBox").classList.toggle("active", status.leak);
+    document.getElementById("groundingBox").classList.toggle("active", status.grounding);
+
+    // Grounding
+    let groundingBox = document.getElementById("groundingBox");
+    if (status.depth !== undefined && status.depth.m !== undefined) {
+        groundingBox.innerText = status.grounding ? `Grounding (${status.depth.m}m)` : `Clear (${status.depth.m}m)`;
+    }
+
+    let groundTimeText = "None";
+    if (status.last_grounding_time && status.last_grounding_time !== "None") {
+        let timeOnly = status.last_grounding_time.split('T')[1].split('+')[0];
+        groundTimeText = `${timeOnly} (${status.last_grounding_depth}m)`;
+    }
+    document.getElementById("lastGroundingValue").textContent = groundTimeText;
     
     // Updating the leak box with the voltage
     let leakBox = document.getElementById("leakBox");
@@ -446,6 +464,14 @@ function drawRadar(obstacles, raw_points) {
         // Draw the Boat (Center)
         ctx.fillStyle = '#00aaff';
         ctx.fillRect(center_x - 5, center_y - 10, 10, 20);
+  
+        // Arrow to show direction
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.moveTo(center_x, center_y - 10);
+        ctx.lineTo(center_x - 4, center_y - 2);
+        ctx.lineTo(center_x + 4, center_y - 2);
+        ctx.fill();
 
         // Draw the Tracked Obstacles (Red Dots)
         if (obstacles && obstacles.length > 0) {
@@ -540,6 +566,14 @@ async function sendRoute() {
     body: JSON.stringify({ waypoints })
   });
   alert("Route Sent!");
+}
+  
+async function returnToStart() {
+  await fetch(`${BASE_URL}/return`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-API-Key": API_KEY }
+  });
+  alert("Returning to Start!");
 }
 
 //deals with the drawings of the overlaid map
