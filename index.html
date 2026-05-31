@@ -134,8 +134,11 @@
       z-index: 10;
     }
 
-    #mainContent { display: none; } /* Ensures page cannot be viewwed unless given the right key */
+    #mainContent { display: none; }
 
+    /* Slider  */
+    .slider-container { display: flex; align-items: center; gap: 10px; margin-top: 10px; background: #f8f9fa; padding: 8px; border-radius: 6px; border: 1px solid #ddd;}
+    .slider-container input { flex-grow: 1; margin: 0; }
   </style>
 </head>
 <body>
@@ -205,15 +208,28 @@
 
   <div class="right-col">
     <div class="box">
-      <h3>Route Planner</h3>
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 5px; margin-bottom: 10px;">
+          <h3 style="margin: 0; border: none; padding: 0;">Route Planner</h3>
+          <div id="missionProgressContainer" style="display:none; flex-direction: row; align-items: center; gap: 10px;">
+              <div style="width: 120px; height: 16px; background: #eee; border-radius: 8px; overflow: hidden; border: 1px solid #ccc;">
+                  <div id="missionProgressBar" style="width: 0%; height: 100%; background: #1976d2; transition: width 0.5s;"></div>
+              </div>
+              <span id="missionTimeETA" style="font-size: 13px; font-weight: bold; color: #333;">ETA: --:--</span>
+          </div>
+      </div>
       <div id="map"></div>
+      <div class="slider-container">
+        <label for="timeSlider" style="font-size: 12px; font-weight: bold; color: #555;">Filter History:</label>
+        <input type="range" id="timeSlider" min="0" max="100" value="0" oninput="filterMapData()">
+      </div>
       <div style="display:flex; gap:10px; margin-top:10px;">
         <button onclick="undoWaypoint()" style="background:#777;">Undo</button>
         <button onclick="clearRoute()" style="background:#777;">Clear</button>
-        <button onclick="sendRoute()">Transmit Route</button>
+        <button onclick="sendRoute()" style="background:#1976d2;">Start Route</button>
         <button onclick="returnToStart()" style="background:#f57c00;">Return to Start</button>
       </div>
-      <div class="route-list" id="routeList">Click map to set waypoints...</div>
+      <div class="route-list"><b>Click on the map to drop sequential GPS navigation points for the ASV.</b></div>
+      <div class="route-list" id="routeList" style="max-height: 80px;">Awaiting waypoints...</div>
     </div>
 
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
@@ -247,6 +263,16 @@
 
     </div>
 
+    <div class="box">
+      <h3>Manual Control</h3>
+      <div class="controls">
+        <button class="up" onclick="sendManual('forward')">↑</button>
+        <button class="left" onclick="sendManual('left')">←</button>
+        <button class="right" onclick="sendManual('right')">→</button>
+        <button class="down" onclick="sendManual('back')">↓</button>
+      </div>
+      <button onclick="sendManual('stop')" style="background:#d32f2f; margin-top:15px;">EMERGENCY STOP</button>
+    </div>
     
     <div class="box">
       <h3>Status and Health</h3>
@@ -283,16 +309,6 @@
       <div class="route-list" style="margin-top: 15px;"> The Dry or Leak button alerts the user to any water, condensation or leaks inside the bottom of the hulls. The voltage associated with it alerts the user to how severe the water detection is and is on a range from 0V to 3.3V. </div>
     </div>
 
-    <div class="box">
-      <h3>Manual Control</h3>
-      <div class="controls">
-        <button class="up" onclick="sendManual('forward')">↑</button>
-        <button class="left" onclick="sendManual('left')">←</button>
-        <button class="right" onclick="sendManual('right')">→</button>
-        <button class="down" onclick="sendManual('back')">↓</button>
-      </div>
-      <button onclick="sendManual('stop')" style="background:#d32f2f; margin-top:15px;">EMERGENCY STOP</button>
-    </div>
   </div>
 </div>
 
@@ -338,9 +354,22 @@ async function checkAccess() {
 // Start the security check immediately
 checkAccess();
 
-/* --- Helpers --- */
-function fmtGPS(lat, lon) { return lat ? `${lat.toFixed(4)}, ${lon.toFixed(4)}` : "No Fix"; }
+function fmtGPS(lat, lon) { return lat ? `${lat.toFixed(6)}, ${lon.toFixed(6)}` : "No Fix"; }
 
+// Haversine formula for JS distance calculation
+function getDistanceInMeters(lat1, lon1, lat2, lon2) {
+    const R = 6371e3;
+    const p1 = lat1 * Math.PI/180, p2 = lat2 * Math.PI/180;
+    const dp = (lat2-lat1) * Math.PI/180, dl = (lon2-lon1) * Math.PI/180;
+    const a = Math.sin(dp/2) * Math.sin(dp/2) + Math.cos(p1) * Math.cos(p2) * Math.sin(dl/2) * Math.sin(dl/2);
+    return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+}
+
+let lastKnownGPS = null;
+let missionActive = false;
+let missionStartTime = 0;
+let totalMissionDistance = 0;
+let routeWaypoints = [];
 /* --- Refresh Logic --- */
 async function refresh() {
   try {
@@ -366,11 +395,42 @@ async function refresh() {
         document.getElementById("batteryValue").textContent = status.battery || "Unknown";
     }
 
-    // Compass updates
+    // Compass & Boat Icon updates
     if (status.heading !== undefined) {
         let headingDeg = Math.round(status.heading);
         document.getElementById("compassNeedle").style.transform = `rotate(${headingDeg}deg)`;
         document.getElementById("headingText").textContent = `${headingDeg}°`;
+        let liveIconArrow = document.getElementById('liveBoatMarkerArrow');
+        if (liveIconArrow) liveIconArrow.style.transform = `rotate(${headingDeg}deg)`;
+    }
+
+    if (status.gps && status.gps.lat) {
+        lastKnownGPS = status.gps;
+        liveBoatMarker.setLatLng([status.gps.lat, status.gps.lon]);
+    }
+
+    // MISSION STATUS BAR LOGIC
+    if (missionActive && lastKnownGPS && routeWaypoints.length > 0) {
+        let closestIdx = 0, minD = Infinity;
+        for(let i=0; i<routeWaypoints.length; i++) {
+            let d = getDistanceInMeters(lastKnownGPS.lat, lastKnownGPS.lon, routeWaypoints[i].lat, routeWaypoints[i].lon);
+            if (d < minD) { minD = d; closestIdx = i; }
+        }
+        let remainingDist = minD;
+        for (let i=closestIdx; i<routeWaypoints.length-1; i++) remainingDist += getDistanceInMeters(routeWaypoints[i].lat, routeWaypoints[i].lon, routeWaypoints[i+1].lat, routeWaypoints[i+1].lon);
+        
+        let progress = Math.max(0, 1 - (remainingDist / totalMissionDistance));
+        if (progress > 1 || remainingDist <= 3.0) progress = 1;
+        document.getElementById("missionProgressBar").style.width = (progress * 100) + "%";
+        
+        if (progress > 0 && progress < 1) {
+            let elapsed = (Date.now() - missionStartTime) / 1000;
+            let remaining = (elapsed / progress) - elapsed;
+            document.getElementById("missionTimeETA").innerText = `ETA: ${Math.floor(remaining / 60)}m ${Math.floor(remaining % 60)}s`;
+        } else if (progress >= 1) {
+            document.getElementById("missionTimeETA").innerText = `Arrived!`;
+            missionActive = false;
+        }
     }
 
     drawRadar(status.obstacles, status.raw_points);
@@ -539,7 +599,14 @@ async function sendManual(dir) {
 /* --- Map Initialization with Overlays --- */
 let map = L.map('map').setView([51.4988, 0.1749], 13);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-L.control.scale().addTo(map); // Adds the requested scale bar
+L.control.scale().addTo(map);
+
+let boatMapIcon = L.divIcon({
+    html: `<div id="liveBoatMarkerArrow" style="transform: rotate(0deg); width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-bottom: 20px solid red; filter: drop-shadow(0px 2px 2px rgba(0,0,0,0.5));"></div>`,
+    className: 'boat-live-icon',
+    iconSize: [16, 20]
+});
+let liveBoatMarker = L.marker([51.4988, 0.1749], {icon: boatMapIcon, zIndexOffset: 1000}).addTo(map);
 
 // Create groups for your data points
 let waterPoints = L.layerGroup().addTo(map);
@@ -571,7 +638,7 @@ map.on('click', e => {
 function updateMap() {
   const latLngs = waypoints.map(w => [w.lat, w.lon]);
   routeLine.setLatLngs(latLngs);
-  document.getElementById("routeList").innerHTML = waypoints.map((w, i) => `Pt ${i+1}: ${w.lat.toFixed(4)}, ${w.lon.toFixed(4)}`).join("<br>");
+  document.getElementById("routeList").innerHTML = waypoints.map((w, i) => `Pt ${i+1}: ${w.lat.toFixed(6)}, ${w.lon.toFixed(6)}`).join("<br>");
 }
 
 function undoWaypoint() { waypoints.pop(); updateMap(); }
@@ -579,12 +646,18 @@ function clearRoute() { waypoints = []; updateMap(); }
 
 async function sendRoute() {
   if (waypoints.length < 1) return alert("Select points first");
-  await fetch(`${BASE_URL}/route`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-API-Key": API_KEY },
-    body: JSON.stringify({ waypoints })
-  });
-  alert("Route Sent!");
+  
+  routeWaypoints = [...waypoints];
+  if (lastKnownGPS) routeWaypoints.unshift({lat: lastKnownGPS.lat, lon: lastKnownGPS.lon});
+  totalMissionDistance = 0;
+  for (let i=0; i<routeWaypoints.length-1; i++) totalMissionDistance += getDistanceInMeters(routeWaypoints[i].lat, routeWaypoints[i].lon, routeWaypoints[i+1].lat, routeWaypoints[i+1].lon);
+  
+  missionActive = true;
+  missionStartTime = Date.now();
+  document.getElementById("missionProgressContainer").style.display = "flex";
+
+  await fetch(`${BASE_URL}/route`, { method: "POST", headers: { "Content-Type": "application/json", "X-API-Key": API_KEY }, body: JSON.stringify({ waypoints }) });
+  alert("Route Started!");
 }
   
 async function returnToStart() {
@@ -595,50 +668,55 @@ async function returnToStart() {
   alert("Returning to Start!");
 }
 
-//deals with the drawings of the overlaid map
+let allMapData = { water: [], birds: [], depth: [] };
+
 function drawMapOverlays(waterData, birdData, depthData) {
-    // NOTICE: The clearLayers() commands have been completely removed!
+    allMapData.water = waterData;
+    allMapData.birds = birdData;
+    allMapData.depth = depthData;
+    filterMapData();
+}
 
-    // Draw Water Data (Blue Circles)
-    waterData.forEach(p => {
-        // Only draw it if we haven't seen this exact timestamp before
-        if(p.lat && p.lon && !plottedWater.has(p.ts)) {
-            L.circleMarker([p.lat, p.lon], {color: 'blue', radius: 5, fillOpacity: 0.8})
-             .bindPopup(`
-                <b>Water Sample</b><br>
-                pH: ${p.ph}<br>
-                Temp: ${p.temp}°C<br>
-                TDS: ${p.tds} PPM<br>
-                Turbidity: ${p.turbidity} NTU
-             `)
-             .addTo(waterPoints);
-            plottedWater.add(p.ts); // Mark as drawn
+function filterMapData() {
+    let sliderVal = document.getElementById("timeSlider") ? parseInt(document.getElementById("timeSlider").value) : 0;
+    let filterPercent = sliderVal / 100.0;
+
+    waterPoints.clearLayers();
+    birdPoints.clearLayers();
+    depthPoints.clearLayers();
+
+    const plotData = (dataArray, layerGroup, renderFunc) => {
+        if (!dataArray || dataArray.length === 0) return;
+        let startIndex = Math.floor(dataArray.length * filterPercent);
+        if (startIndex >= dataArray.length) startIndex = dataArray.length - 1;
+        for (let i = startIndex; i < dataArray.length; i++) {
+            let p = dataArray[i];
+            if (p.lat && p.lon) renderFunc(p, layerGroup);
         }
+    };
+
+    plotData(allMapData.water, waterPoints, (p, group) => {
+        let timeStr = p.ts.split('T')[1].split('+')[0];
+        L.circleMarker([p.lat, p.lon], {color: 'blue', radius: 5, fillOpacity: 0.8})
+         .bindPopup(`<b>${timeStr}</b><br><b>Water Sample</b><br>pH: ${p.ph}<br>Temp: ${p.temp}°C<br>TDS: ${p.tds} PPM<br>Turbidity: ${p.turbidity} NTU`)
+         .addTo(group);
     });
 
-    // Draw Bird Data (Standard Markers)
-    birdData.forEach(p => {
-        if(p.lat && p.lon && !plottedBirds.has(p.ts)) {
-            L.marker([p.lat, p.lon])
-             .bindPopup(`<b>Bird Sighting</b><br>${p.species} (${p.count})`)
-             .addTo(birdPoints);
-            plottedBirds.add(p.ts);
-        }
+    plotData(allMapData.birds, birdPoints, (p, group) => {
+        let timeStr = p.ts.split('T')[1].split('+')[0];
+        L.marker([p.lat, p.lon])
+         .bindPopup(`<b>${timeStr}</b><br><b>Bird Sighting</b><br>${p.species} (${p.count})`)
+         .addTo(group);
     });
 
-    // Draw Depth Data (Red Circles)
-    depthData.forEach(p => {
-        if(p.lat && p.lon && !plottedDepth.has(p.ts)) {
-            L.circleMarker([p.lat, p.lon], {color: 'red', radius: 4, fillOpacity: 0.8})
-             .bindPopup(`<b>Depth</b><br>${p.depth_m}m`)
-             .addTo(depthPoints);
-            plottedDepth.add(p.ts);
-        }
+    plotData(allMapData.depth, depthPoints, (p, group) => {
+        let timeStr = p.ts.split('T')[1].split('+')[0];
+        L.circleMarker([p.lat, p.lon], {color: 'red', radius: 4, fillOpacity: 0.8})
+         .bindPopup(`<b>${timeStr}</b><br><b>Depth</b><br>${p.depth_m}m`)
+         .addTo(group);
     });
 }
 
-
-// the following code and function basically designs the catamaran in the mao which is made
 let boatModel; // Outside so the refresh() function can talk to it
 
 function init3D() {
