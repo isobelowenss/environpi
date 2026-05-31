@@ -210,11 +210,11 @@
     <div class="box">
       <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 5px; margin-bottom: 10px;">
           <h3 style="margin: 0; border: none; padding: 0;">Route Planner</h3>
-          <div id="missionProgressContainer" style="display:none; flex-direction: row; align-items: center; gap: 10px;">
+          <div id="missionProgressContainer" style="display:flex; flex-direction: row; align-items: center; gap: 10px;">
               <div style="width: 120px; height: 16px; background: #eee; border-radius: 8px; overflow: hidden; border: 1px solid #ccc;">
                   <div id="missionProgressBar" style="width: 0%; height: 100%; background: #1976d2; transition: width 0.5s;"></div>
               </div>
-              <span id="missionTimeETA" style="font-size: 13px; font-weight: bold; color: #333;">ETA: --:--</span>
+              <span id="missionTimeETA" style="font-size: 13px; font-weight: bold; color: #333;">Mission: Idle</span>
           </div>
       </div>
       <div id="map"></div>
@@ -365,11 +365,12 @@ function getDistanceInMeters(lat1, lon1, lat2, lon2) {
     return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
 }
 
-let lastKnownGPS = null;
 let missionActive = false;
 let missionStartTime = 0;
 let totalMissionDistance = 0;
 let routeWaypoints = [];
+let firstGPSLock = true; // Added to auto-center the map
+  
 /* --- Refresh Logic --- */
 async function refresh() {
   try {
@@ -404,9 +405,16 @@ async function refresh() {
         if (liveIconArrow) liveIconArrow.style.transform = `rotate(${headingDeg}deg)`;
     }
 
-    if (status.gps && status.gps.lat) {
+    // Update Live Boat GPS Position
+    if (status.gps && status.gps.lat && status.gps.lat !== 0.0) {
         lastKnownGPS = status.gps;
         liveBoatMarker.setLatLng([status.gps.lat, status.gps.lon]);
+        
+        // Auto-center the map on the boat when it first loads
+        if (firstGPSLock) {
+            map.setView([status.gps.lat, status.gps.lon], 16);
+            firstGPSLock = false;
+        }
     }
 
     // MISSION STATUS BAR LOGIC
@@ -669,12 +677,19 @@ async function returnToStart() {
 }
 
 let allMapData = { water: [], birds: [], depth: [] };
+let lastDataCount = -1; // Tracks how much data we have to prevent flickering
 
 function drawMapOverlays(waterData, birdData, depthData) {
-    allMapData.water = waterData;
-    allMapData.birds = birdData;
-    allMapData.depth = depthData;
-    filterMapData();
+    let currentDataCount = waterData.length + birdData.length + depthData.length;
+    
+    // Only redraw the map if the Pi actually sent NEW data
+    if (currentDataCount !== lastDataCount) {
+        allMapData.water = waterData;
+        allMapData.birds = birdData;
+        allMapData.depth = depthData;
+        lastDataCount = currentDataCount;
+        filterMapData();
+    }
 }
 
 function filterMapData() {
