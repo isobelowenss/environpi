@@ -160,7 +160,7 @@ def get_status():
 def get_rows(kind):
     require_key()
     if kind not in LOGS: abort(404)
-    return jsonify(LOGS[kind][-50:])
+    return jsonify(LOGS[kind])
 
 @app.route("/download/<kind>.csv", methods=["GET"])
 def download_csv(kind):
